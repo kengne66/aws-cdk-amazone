@@ -10,14 +10,15 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2'
 import * as apigw from "aws-cdk-lib/aws-apigateway";
 import * as cognito from 'aws-cdk-lib/aws-cognito'
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import {createLambda, createLambdaRole, createSecurityGroup, LambdaIntegrationOnePermissionOnly} from './stacks/common'
+import {createLambda, createLambdaRole, createSecurityGroup, LambdaIntegrationOnePermissionOnly} from './infrastructure-core-stack'
 import {createRole} from "aws-cdk-lib/aws-autoscaling-hooktargets";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import {constants} from "http2";
 import {HttpMethod} from "aws-cdk-lib/aws-events";
 import * as iam from 'aws-cdk-lib/aws-iam';
 import {ServicePrincipal} from "aws-cdk-lib/aws-iam";
-import {int} from "aws-sdk/clients/datapipeline";
+//import {int} from "aws-sdk/clients/datapipeline";
+
 
 
 export interface FrontEndLambdaProps extends DeploymentStackProps {
@@ -54,6 +55,7 @@ export interface FrontEndLambdaProps extends DeploymentStackProps {
     readonly oracleDailyGraphSiteCode: string
     readonly oracleWeeklyGraphSiteCode: string
     readonly oracleSubmitData: string
+    readonly oracleMultiSubmitData: string
     readonly oracleValidateSubmit: string
     readonly dbSecretName: string
 }
@@ -83,17 +85,7 @@ export class FrontEndLambdaStack extends DeploymentStack {
                 Runtime.NODEJS_14_X
             ]
         });
-/*
-        const subnet = new ec2.CfnSubnet(this, "subnet-", {
-            availabilityZone: availability_zone,
-            cidrBlock: this.cidr + subnet_cidr,
-            vpcId: this.vpc.ref,
-            tags: [
-                { key: "Name", value: this.svc + "-" + this.env + "-" + subnet_name },
-            ],
-        });
 
- */
         // Frontend lambda function, first: lambdarole, 2nd Security group, 3rd the lambda integration function
         const projectRole = createLambdaRole(this, "psrFunctionsLambdaRole")
 
@@ -139,6 +131,7 @@ export class FrontEndLambdaStack extends DeploymentStack {
                 ORACLE_DAILY_GRAPH_SITECODE: this.props.oracleDailyGraphSiteCode,
                 ORACLE_WEEKLY_GRAPH_SITECODE: this.props.oracleWeeklyGraphSiteCode,
                 ORACLE_SUBMIT_DATA: this.props.oracleSubmitData,
+                ORACLE_MULTI_SUBMIT_DATA: this.props.oracleMultiSubmitData,
                 ORACLE_VALIDATE_SUBMIT: this.props.oracleValidateSubmit,
 
             },
@@ -300,6 +293,17 @@ export class FrontEndLambdaStack extends DeploymentStack {
 
         })
 
+        const myMethodResponse: apigateway.MethodResponse = {
+            statusCode: '401',
+
+            // the properties below are optional
+            responseModels: {
+                'application/json': apigateway.Model.ERROR_MODEL
+            },
+            responseParameters: {
+                'method.response.header.Access-Control-Allow-Origin': true
+            },
+        };
 
         // Lambda API for the REST API.
         const api = LambdaRestApi.root.addResource('api');
@@ -314,13 +318,16 @@ export class FrontEndLambdaStack extends DeploymentStack {
         })
 
 
+
+
         // /api/getcustomersitecode
         const getCustomerSiteCode = api.addResource("getcustomersitecode");
         const getCustomerSiteCodeMethod = getCustomerSiteCode.addMethod('POST', new apigw.LambdaIntegration(FrontEndLambdaFunction), {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+             methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(getCustomerSiteCodeMethod)
 
@@ -338,7 +345,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(getItemNumberWithDescriptionMethod)
 
@@ -348,7 +356,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(getTlaPartNumberMethod)
 
@@ -358,7 +367,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(buyLevelPartNumberMethod)
 
@@ -368,7 +378,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(validateUserMethod)
 
@@ -378,7 +389,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(createPsrInAgileMethod)
 
@@ -388,7 +400,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(getPsrProjectNameMethod)
 
@@ -398,7 +411,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(getFileUploadUrlMethod)
 
@@ -408,7 +422,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(uploadFilesFroms3ToAgileMethod)
 
@@ -418,7 +433,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(deleteFileFromS3Method)
 
@@ -428,7 +444,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(assetUpdateUrlMethod)
 
@@ -452,7 +469,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetProjectTypeMethod)
 
@@ -462,7 +480,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetSiteImpactMethod)
 
@@ -472,7 +491,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetSafetyRiskMethod)
 
@@ -482,7 +502,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetDeploymentStoppedMethod)
 
@@ -492,7 +513,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetPartRequiredMethod)
 
@@ -502,7 +524,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetTlanonConformanceMethod)
 
@@ -512,7 +535,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetShipToMethod)
 
@@ -522,7 +546,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
        myPermission.bind1(dbGetHelpSectionContentMethod)
 
@@ -532,7 +557,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetImportantUpdateMethod)
 
@@ -542,7 +568,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetPsrCategoryMethod)
 
@@ -552,7 +579,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetAdminPsrSubCatMethod)
 
@@ -562,7 +590,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetAdminPsrSubSubCatMethod)
 
@@ -572,7 +601,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetPsrDashboardLinksMethod)
 
@@ -583,7 +613,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetPsrSubCategoryMethod)
 
@@ -593,60 +624,15 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbGetPsrSubSubCategoryMethod)
 
 
-        /*
-
-        //resource db/createdatabase
-        const dbCreateDatabase = dbApi.addResource("createdatabase");
-        const dbCreateDatabaseMethod = dbCreateDatabase.addMethod('POST', new apigw.LambdaIntegration(BackEndLambdaFunction), {
-            authorizationType: apigw.AuthorizationType.COGNITO,
-            authorizer: {
-                authorizerId: authorizer.ref
-            }
-        })
-        myPermission.bind1(dbCreateDatabaseMethod)
-
-        //resource db/validateadmin
-        const dbValidateAdmin = dbApi.addResource("validateadmin");
-        const dbValidateAdminMethod = dbValidateAdmin.addMethod('POST', new apigw.LambdaIntegration(BackEndLambdaFunction), {
-            authorizationType: apigw.AuthorizationType.COGNITO,
-            authorizer: {
-                authorizerId: authorizer.ref
-            }
-        })
-        myPermission.bind1(dbValidateAdminMethod)
-
-         */
 
         //resource db/search
         const dbSearch = dbApi.addResource("search")
-
-        /*
-        //resource db/search/psrbyid
-        const dbSearchPsrById = dbSearch.addResource("psrbyid");
-        const dbSearchPsrByIdMethod = dbSearchPsrById.addMethod('POST', new apigw.LambdaIntegration(BackEndLambdaFunction), {
-            authorizationType: apigw.AuthorizationType.COGNITO,
-            authorizer: {
-                authorizerId: authorizer.ref
-            }
-        })
-        myPermission.bind1(dbSearchPsrByIdMethod)
-
-        //resource db/search/byusername
-        const dbSearchByUsername = dbSearch.addResource("byusername");
-        const dbSearchByUsernameMethod = dbSearchByUsername.addMethod('POST', new apigw.LambdaIntegration(BackEndLambdaFunction), {
-            authorizationType: apigw.AuthorizationType.COGNITO,
-            authorizer: {
-                authorizerId: authorizer.ref
-            }
-        })
-        myPermission.bind1(dbSearchByUsernameMethod)
-
-         */
 
         //resource db/search/userdetails
         const dbSearchUserdetails = dbSearch.addResource("userdetails");
@@ -654,7 +640,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbSearchUserdetailsnMethod)
 
@@ -664,7 +651,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbSearchLateStSavedPsrMethod)
 
@@ -679,7 +667,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertAffItemNumMethod)
 
@@ -690,7 +679,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertTlaItemNumMethod)
 
@@ -700,7 +690,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(ddbUpsertUserDetailMethod)
 
@@ -710,7 +701,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertPsrPhotoUpdateMethod)
 
@@ -720,7 +712,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertImportantUpdateMethod)
 
@@ -730,7 +723,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertSavedpsrMethod)
 
@@ -740,7 +734,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertDeploymentStoppedMethod)
 
@@ -750,7 +745,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertPartRequiredMethod)
 
@@ -760,7 +756,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertProjectTypeMethod)
 
@@ -770,7 +767,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertPsrCategoryMethod)
 
@@ -780,7 +778,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertPsrSubCategoryMethod)
 
@@ -790,7 +789,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertPsrSubSubCategoryMethod)
 
@@ -800,7 +800,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertSafetyRiskMethod)
 
@@ -810,7 +811,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertShipToMethod)
 
@@ -820,7 +822,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertSiteImpactMethod)
 
@@ -830,7 +833,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpsertTlaNonConformanceTimingMethod)
 
@@ -840,7 +844,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbUpserDashboardLinkMethod)
 
@@ -856,7 +861,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(ddbUpdateContentForGuidanceMethod)
 
@@ -871,7 +877,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeletePhotoMethod)
 
@@ -881,7 +888,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteSavedPsrMethod)
 
@@ -891,7 +899,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteDeploymentStoppedMethod)
 
@@ -901,7 +910,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeletePartRequiredMethod)
 
@@ -911,7 +921,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteProjectTypeMethod)
 
@@ -921,7 +932,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeletePsrCategoryMethod)
 
@@ -931,7 +943,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeletePsrSubCategoryMethod)
 
@@ -941,7 +954,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeletePsrSubSubCategoryMethod)
 
@@ -951,7 +965,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteSafetyRiskMethod)
 
@@ -961,7 +976,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteShipToMethod)
 
@@ -971,7 +987,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteSiteImpactMethod)
 
@@ -981,7 +998,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteTlaNonConformanceMethod)
 
@@ -991,7 +1009,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteUserDetailsMethod)
 
@@ -1001,7 +1020,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteDashboardLinkMethod)
 
@@ -1011,7 +1031,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         myPermission.bind1(dbDeleteImportantUpdateMethod)
 
@@ -1025,7 +1046,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleDeliveryNumberMethod)
 
@@ -1035,7 +1057,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleItemNumberMethod)
 
@@ -1045,9 +1068,12 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleDestinationSiteMethod)
+
+
 
         //resource oracle/psrnumber
         const oraclePsrNumber = oracleApi.addResource("psrnumber");
@@ -1055,7 +1081,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oraclePsrNumberMethod)
 
@@ -1065,7 +1092,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleSearchLoadNumberMethod)
 
@@ -1075,7 +1103,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleFilterDataMethod)
 
@@ -1085,7 +1114,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleProductLineMethod)
 
@@ -1095,7 +1125,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleItemDescMethod)
 
@@ -1105,7 +1136,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleShipsStatusMethod)
 
@@ -1115,7 +1147,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleReceiptStatusMethod)
 
@@ -1127,9 +1160,22 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleSubmitDataMethod)
+
+
+        //resource oracle/multisubmit
+        const oracleMultipleSubmit = oracleApi.addResource("multiplesubmit");
+        const oracleMultipleSubmitMethod = oracleMultipleSubmit.addMethod('POST', new apigw.LambdaIntegration(FrontEndLambdaFunction), {
+            authorizationType: apigw.AuthorizationType.COGNITO,
+            authorizer: {
+                authorizerId: authorizer.ref
+            },
+            methodResponses: [myMethodResponse]
+        })
+        frontendPermission.bind1(oracleMultipleSubmitMethod)
 
         //resource oracle/dailygraphbysite
         const oracleDailyGraphBySite = oracleApi.addResource("dailygraphbysite");
@@ -1137,7 +1183,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleDailyGraphBySIteMethod)
 
@@ -1147,7 +1194,8 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleWeeklyGraphBySiteMethod)
 
@@ -1158,17 +1206,15 @@ export class FrontEndLambdaStack extends DeploymentStack {
             authorizationType: apigw.AuthorizationType.COGNITO,
             authorizer: {
                 authorizerId: authorizer.ref
-            }
+            },
+            methodResponses: [myMethodResponse]
         })
         frontendPermission.bind1(oracleSubmitValidateMethod)
 
 
 
-
-
-
-
-
+    }
+}
 
 
 

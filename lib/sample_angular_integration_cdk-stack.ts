@@ -30,15 +30,15 @@ import {
 import {App} from 'aws-cdk-lib';
 
 
-import {websiteStack} from "./static-website-stack";
+import {websiteStack} from "./stacks/static-website-stack";
 // import {cognitoStack} from "./stacks/cognito";
-import {FrontEndLambdaStack} from "./front-end-lambda-stack";
+import {FrontEndLambdaStack} from "./stacks/lambda-stack";
 
-import {amamzonRDEInfrastructureCoreStack} from "./Infrastructure-core-stak";
-import {amazonRDEWaf} from "./waf";
-import {cognitoStack} from "./cognito";
+import {amamzonRDEInfrastructureCoreStack} from "./stacks/infrastructure-core-stack";
+import {amazonRDEWaf} from "./stacks/waf-stack";
+import {cognitoStack} from "./stacks/cognito-stack";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import {AuroraDBStack} from "./aurora-postgres-stack";
+import {AuroraDBStack} from "./stacks/aurora-postgres-stack";
 
 
 // Set up your CDK App

@@ -12,7 +12,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import {DeploymentStack, DeploymentStackProps} from "@amzn/pipelines";
-import {FrontEndLambdaProps} from "./front-end-lambda-stack";
+import {FrontEndLambdaProps} from "./lambda-stack";
 
 export interface AuroraDBProps extends DeploymentStackProps {
     readonly stage: string;
